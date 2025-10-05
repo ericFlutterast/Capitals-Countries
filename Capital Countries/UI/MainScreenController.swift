@@ -37,9 +37,13 @@ class MainScreenController: UIViewController {
   
     private func switchContent() {
         var content: UIView!
+        
         switch selectedSegmentIndex {
-        case 0: content = learningModeController.view
+        case 0:
+            content = learningModeController.view
+            addChild(learningModeController)
         case 1: content = editCountriesController.view
+            addChild(editCountriesController)
         default:
             fatalError( "Unknown segment index: \(selectedSegmentIndex)" )
         }
