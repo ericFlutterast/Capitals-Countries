@@ -4,6 +4,9 @@ import UIKit
 class LearningModeScreenController: UIViewController {
     private let countryCard = CountryCardController()
     
+    fileprivate let scrollView = UIScrollView()
+    private let sctrollContainerView = UIView()
+    
     private lazy var scoreCounterView = { stack in
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.axis = .horizontal
@@ -24,7 +27,31 @@ class LearningModeScreenController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        configurateScroll()
         configurateUI()
+    }
+    
+    private func configurateScroll() {
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.isUserInteractionEnabled = true
+        sctrollContainerView.translatesAutoresizingMaskIntoConstraints = false
+        sctrollContainerView.isUserInteractionEnabled = true
+        
+        view.addSubview(scrollView)
+        scrollView.addSubview(sctrollContainerView)
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            
+            sctrollContainerView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            sctrollContainerView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            sctrollContainerView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            sctrollContainerView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            
+            sctrollContainerView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor)
+        ])
     }
 
     private func configurateUI() {
@@ -44,39 +71,39 @@ class LearningModeScreenController: UIViewController {
         scoreCounterView.addArrangedSubview(scoreChip)
         scoreCounterView.addArrangedSubview(countCountriesChip)
         
-        view.addSubview(scoreCounterView)
+        sctrollContainerView.addSubview(scoreCounterView)
         NSLayoutConstraint.activate([
-            scoreCounterView.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
-            scoreCounterView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            scoreCounterView.topAnchor.constraint(equalTo: sctrollContainerView.topAnchor, constant: 16),
+            scoreCounterView.leadingAnchor.constraint(equalTo: sctrollContainerView.leadingAnchor, constant: 16),
         ])
         
-        view.addSubview(progressIndicatorView)
+        sctrollContainerView.addSubview(progressIndicatorView)
         NSLayoutConstraint.activate([
             progressIndicatorView.topAnchor.constraint(equalTo: scoreCounterView.bottomAnchor, constant: 16),
-            progressIndicatorView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            progressIndicatorView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            progressIndicatorView.leadingAnchor.constraint(equalTo: sctrollContainerView.leadingAnchor, constant: 16),
+            progressIndicatorView.trailingAnchor.constraint(equalTo: sctrollContainerView.trailingAnchor, constant: -16),
         ])
         
         progressIndicatorView.setProgress(0.2, animated: true)
         
         let countriesGroup = CountryGroupsDropDownView()
-        countriesGroup.onSelect = onSelectCountryGroup
         countriesGroup.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(countriesGroup)
+        countriesGroup.onSelect = onSelectCountryGroup
+        sctrollContainerView.addSubview(countriesGroup)
         NSLayoutConstraint.activate([
             countriesGroup.topAnchor.constraint(equalTo: progressIndicatorView.bottomAnchor, constant: 24),
-            countriesGroup.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            countriesGroup.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            countriesGroup.leadingAnchor.constraint(equalTo: sctrollContainerView.leadingAnchor, constant: 16),
+            countriesGroup.trailingAnchor.constraint(equalTo: sctrollContainerView.trailingAnchor, constant: -16),
         ])
         
         addChild(countryCard)
         countryCard.view.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(countryCard.view)
+        sctrollContainerView.addSubview(countryCard.view)
         NSLayoutConstraint.activate([
             countryCard.view.topAnchor.constraint(equalTo: countriesGroup.bottomAnchor, constant: 24),
-            countryCard.view.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            countryCard.view.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-            countryCard.view.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -120),
+            countryCard.view.leadingAnchor.constraint(equalTo: sctrollContainerView.leadingAnchor, constant: 16),
+            countryCard.view.trailingAnchor.constraint(equalTo: sctrollContainerView.trailingAnchor, constant: -16),
+            countryCard.view.bottomAnchor.constraint(equalTo: sctrollContainerView.bottomAnchor, constant: -16),
         ])
     }
     
@@ -215,17 +242,30 @@ private final class CountryCardController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configurateUI()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillShowHandler),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHideHandler),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+        let gestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapOutsideHandler))
+        view.addGestureRecognizer(gestureRecognizer)
     }
     
     private func configurateUI() {
         view.backgroundColor = .appBar
         view.layer.cornerRadius = 24
-        view.clipsToBounds = false
         view.layer.shadowColor = UIColor.black.cgColor
         view.layer.shadowRadius = 8
         view.layer.shadowOpacity = 0.25
         view.layer.shadowOffset = CGSize(width: 0, height: 4)
-        
+
         countryFlagLabet.text = "🇪🇺"
         view.addSubview(countryFlagLabet)
         NSLayoutConstraint.activate([
@@ -309,9 +349,11 @@ private final class CountryCardController: UIViewController {
             rowOfCheckButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             rowOfCheckButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
             rowOfCheckButton.heightAnchor.constraint(equalToConstant: 52),
+            rowOfCheckButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -24)
         ])
     }
     
+    //MARK: Country card handlers
     private func playCountrySoundHandler() {
         print("Play country")
     }
@@ -327,8 +369,28 @@ private final class CountryCardController: UIViewController {
     @objc private func nextCountryHandler() {
         print("Next country")
     }
+    
+    @objc private func keyboardWillShowHandler(_ notification: NSNotification){
+        if let keyboardSize = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+            if let parentController = parent as? LearningModeScreenController {
+                parentController.scrollView.contentInset.bottom = keyboardSize.height + 30
+                print("\(keyboardSize.height)")
+            }
+        }
+    }
+    
+    @objc private func keyboardWillHideHandler(_ notification: NSNotification) {
+        if let parentController = parent as? LearningModeScreenController {
+            parentController.scrollView.contentInset.bottom = 0
+        }
+    }
+    
+    @objc private func tapOutsideHandler() {
+        view.endEditing(true)
+    }
 }
 
+//MARK: Capital input UITextFieldDelegate
 extension CountryCardController: UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         textField.resignFirstResponder()
@@ -337,6 +399,12 @@ extension CountryCardController: UITextFieldDelegate {
     
     func textFieldDidBeginEditing(_ textField: UITextField) {
         textField.text = ""
+    }
+    
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        if let text = textField.text, text.isEmpty {
+            textField.text = "Enter the capital..."
+        }
     }
 }
 
@@ -423,15 +491,19 @@ private final class CheckButton: UIView {
         let stack = UIStackView()
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.spacing = 16
+        stack.distribution = .fill
         
-        let uiImage = UIImageView(image: UIImage(named: "checkmark"))
-        uiImage.transform = CGAffineTransform(scaleX: 0.9, y: 0.9)
+        let uiImage = UIImageView(image: UIImage(systemName: "checkmark"))
+        uiImage.translatesAutoresizingMaskIntoConstraints = false
+        uiImage.widthAnchor.constraint(equalToConstant: 16).isActive = true
+        uiImage.heightAnchor.constraint(equalToConstant: 16).isActive = true
+        uiImage.tintColor = .appBar
         
         let title = UILabel()
         title.text = "Check"
         title.font = .systemFont(ofSize: 13, weight: .medium)
         title.textColor = .appBar
-        
+
         stack.addArrangedSubview(uiImage)
         stack.addArrangedSubview(title)
         
