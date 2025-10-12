@@ -5,7 +5,7 @@ class LearningModeScreenController: UIViewController {
     private let countryCard = CountryCardController()
     
     fileprivate let scrollView = UIScrollView()
-    private let sctrollContainerView = UIView()
+    private let scrollContainerView = UIView()
     
     private lazy var scoreCounterView = { stack in
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -34,23 +34,23 @@ class LearningModeScreenController: UIViewController {
     private func configurateScroll() {
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.isUserInteractionEnabled = true
-        sctrollContainerView.translatesAutoresizingMaskIntoConstraints = false
-        sctrollContainerView.isUserInteractionEnabled = true
+        scrollContainerView.translatesAutoresizingMaskIntoConstraints = false
+        scrollContainerView.isUserInteractionEnabled = true
         
         view.addSubview(scrollView)
-        scrollView.addSubview(sctrollContainerView)
+        scrollView.addSubview(scrollContainerView)
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: view.topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             
-            sctrollContainerView.topAnchor.constraint(equalTo: scrollView.topAnchor),
-            sctrollContainerView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
-            sctrollContainerView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
-            sctrollContainerView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            scrollContainerView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            scrollContainerView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            scrollContainerView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            scrollContainerView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
             
-            sctrollContainerView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor)
+            scrollContainerView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor)
         ])
     }
 
@@ -71,17 +71,17 @@ class LearningModeScreenController: UIViewController {
         scoreCounterView.addArrangedSubview(scoreChip)
         scoreCounterView.addArrangedSubview(countCountriesChip)
         
-        sctrollContainerView.addSubview(scoreCounterView)
+        scrollContainerView.addSubview(scoreCounterView)
         NSLayoutConstraint.activate([
-            scoreCounterView.topAnchor.constraint(equalTo: sctrollContainerView.topAnchor, constant: 16),
-            scoreCounterView.leadingAnchor.constraint(equalTo: sctrollContainerView.leadingAnchor, constant: 16),
+            scoreCounterView.topAnchor.constraint(equalTo: scrollContainerView.topAnchor, constant: 16),
+            scoreCounterView.leadingAnchor.constraint(equalTo: scrollContainerView.leadingAnchor, constant: 16),
         ])
         
-        sctrollContainerView.addSubview(progressIndicatorView)
+        scrollContainerView.addSubview(progressIndicatorView)
         NSLayoutConstraint.activate([
             progressIndicatorView.topAnchor.constraint(equalTo: scoreCounterView.bottomAnchor, constant: 16),
-            progressIndicatorView.leadingAnchor.constraint(equalTo: sctrollContainerView.leadingAnchor, constant: 16),
-            progressIndicatorView.trailingAnchor.constraint(equalTo: sctrollContainerView.trailingAnchor, constant: -16),
+            progressIndicatorView.leadingAnchor.constraint(equalTo: scrollContainerView.leadingAnchor, constant: 16),
+            progressIndicatorView.trailingAnchor.constraint(equalTo: scrollContainerView.trailingAnchor, constant: -16),
         ])
         
         progressIndicatorView.setProgress(0.2, animated: true)
@@ -89,65 +89,26 @@ class LearningModeScreenController: UIViewController {
         let countriesGroup = CountryGroupsDropDownView()
         countriesGroup.translatesAutoresizingMaskIntoConstraints = false
         countriesGroup.onSelect = onSelectCountryGroup
-        sctrollContainerView.addSubview(countriesGroup)
+        scrollContainerView.addSubview(countriesGroup)
         NSLayoutConstraint.activate([
             countriesGroup.topAnchor.constraint(equalTo: progressIndicatorView.bottomAnchor, constant: 24),
-            countriesGroup.leadingAnchor.constraint(equalTo: sctrollContainerView.leadingAnchor, constant: 16),
-            countriesGroup.trailingAnchor.constraint(equalTo: sctrollContainerView.trailingAnchor, constant: -16),
+            countriesGroup.leadingAnchor.constraint(equalTo: scrollContainerView.leadingAnchor, constant: 16),
+            countriesGroup.trailingAnchor.constraint(equalTo: scrollContainerView.trailingAnchor, constant: -16),
         ])
         
         addChild(countryCard)
         countryCard.view.translatesAutoresizingMaskIntoConstraints = false
-        sctrollContainerView.addSubview(countryCard.view)
+        scrollContainerView.addSubview(countryCard.view)
         NSLayoutConstraint.activate([
             countryCard.view.topAnchor.constraint(equalTo: countriesGroup.bottomAnchor, constant: 24),
-            countryCard.view.leadingAnchor.constraint(equalTo: sctrollContainerView.leadingAnchor, constant: 16),
-            countryCard.view.trailingAnchor.constraint(equalTo: sctrollContainerView.trailingAnchor, constant: -16),
-            countryCard.view.bottomAnchor.constraint(equalTo: sctrollContainerView.bottomAnchor, constant: -16),
+            countryCard.view.leadingAnchor.constraint(equalTo: scrollContainerView.leadingAnchor, constant: 16),
+            countryCard.view.trailingAnchor.constraint(equalTo: scrollContainerView.trailingAnchor, constant: -16),
+            countryCard.view.bottomAnchor.constraint(equalTo: scrollContainerView.bottomAnchor, constant: -16),
         ])
     }
     
     private func onSelectCountryGroup(_ value: String) {
         print(value)
-    }
-}
-
-//MARK: Custom chip
-private final class CustomChipView: UIView{
-    var title: String? {
-        didSet {
-            titleLabelView.text = title
-        }
-    }
-    
-    lazy var titleLabelView = { label in
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .systemFont(ofSize: 13, weight: .regular)
-        label.textColor = .textPrimary
-        return label
-    } (UILabel())
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        configurateUI()
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError( "init(coder:) has not been implemented" )
-    }
-    
-    private func configurateUI() {
-        layer.cornerRadius = 8
-        layer.borderColor = UIColor.border.cgColor
-        layer.borderWidth = 1
-        
-        addSubview(titleLabelView)
-        NSLayoutConstraint.activate([
-            titleLabelView.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            titleLabelView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
-            titleLabelView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
-            titleLabelView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
-        ])
     }
 }
 
@@ -326,20 +287,15 @@ private final class CountryCardController: UIViewController {
         rowOfCheckButton.spacing = 16
         rowOfCheckButton.distribution = .fill
         
-        let checkButton = CheckButton()
+        let checkButton = PrimaryButtonView()
+        checkButton.title = "Check"
+        checkButton.icon = UIImage(systemName: "checkmark")
         checkButton.translatesAutoresizingMaskIntoConstraints = false
         checkButton.onTap = checkCapitalHandler
         
-        let nextButton = UIButton()
+        let nextButton = IconButtonView(onTap: nextCountryHandler, icon: UIImage(systemName: "play"))
         nextButton.translatesAutoresizingMaskIntoConstraints = false
-        nextButton.setImage(UIImage(systemName: "play"), for: .normal)
-        nextButton.target(forAction: #selector(nextCountryHandler), withSender: self)
-        nextButton.layer.cornerRadius = 8
-        nextButton.layer.borderColor = UIColor.border.cgColor
-        nextButton.layer.borderColor = UIColor.border.cgColor
-        nextButton.layer.borderWidth = 1
         nextButton.tintColor = .textPrimary
-        nextButton.widthAnchor.constraint(equalToConstant: 52).isActive = true
         
         rowOfCheckButton.addArrangedSubview(checkButton)
         rowOfCheckButton.addArrangedSubview(nextButton)
@@ -461,56 +417,6 @@ private final class PlaySountButton: UIView {
             row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
             row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
             row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-        ])
-    }
-    
-    @objc private func handleTap() {
-        onTap?()
-    }
-}
-
-private final class CheckButton: UIView {
-    var onTap: (() -> Void)?
-    
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        configurateUI()
-        let recognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
-        addGestureRecognizer(recognizer)
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError( "init(coder:) has not been implemented" )
-        
-    }
-    
-    private func configurateUI() {
-        backgroundColor = .primaryS1
-        layer.cornerRadius = 8
-        
-        let stack = UIStackView()
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        stack.spacing = 16
-        stack.distribution = .fill
-        
-        let uiImage = UIImageView(image: UIImage(systemName: "checkmark"))
-        uiImage.translatesAutoresizingMaskIntoConstraints = false
-        uiImage.widthAnchor.constraint(equalToConstant: 16).isActive = true
-        uiImage.heightAnchor.constraint(equalToConstant: 16).isActive = true
-        uiImage.tintColor = .appBar
-        
-        let title = UILabel()
-        title.text = "Check"
-        title.font = .systemFont(ofSize: 13, weight: .medium)
-        title.textColor = .appBar
-
-        stack.addArrangedSubview(uiImage)
-        stack.addArrangedSubview(title)
-        
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
         ])
     }
     
