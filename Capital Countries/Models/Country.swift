@@ -9,9 +9,9 @@ struct Country: Hashable {
 }
 
 enum CountryContinent: String, CaseIterable {
-    case europe = "Europe"
-    case africa = "Africa"
-    case america = "America"
-    case oceania = "Oceania"
-    case asian = "Asia"
+    case europe = "🇪🇺 Europe"
+    case africa = "🦁 Africa"
+    case america = "🗽 America"
+    case oceania = "🏄‍♂️ Oceania"
+    case asian = "🏯 Asia"
 }

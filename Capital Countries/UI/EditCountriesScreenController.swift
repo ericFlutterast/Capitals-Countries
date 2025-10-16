@@ -173,7 +173,9 @@ class EditCountriesScreenController: UIViewController {
 // MARK: - CountriesCollectionDelegate
 private final class CountriesCollectionDelegate: NSObject, UICollectionViewDelegate {}
 
-// MARK: - CountryCell
+
+
+// MARK: - Country Cell
 private final class CountryCell: UICollectionViewCell {
     static let reuseID = "CountryCell"
     

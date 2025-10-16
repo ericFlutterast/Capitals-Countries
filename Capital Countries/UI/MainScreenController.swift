@@ -15,6 +15,7 @@ class MainScreenController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configurateUI()
+        navigationController?.isNavigationBarHidden = true
     }
 
     private func configurateUI() {
@@ -62,9 +63,36 @@ class MainScreenController: UIViewController {
 
 //MARK: NavBar
 private final class CustomNavBar: UIView{
+    private enum ButtonTag: Int {
+        case countryButton
+        case languageButton
+    }
+    
     var onChangeSegment: ((Int) -> Void)?
     
     private let segmentTitles = ["Learning Mode", "Edit Countries"]
+    private var currentSegmentIndex = 0 {
+        didSet {
+            changeButton()
+        }
+    }
+
+    private lazy var addCountryButton = { button in
+        button.tag = ButtonTag.languageButton.rawValue
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.backgroundColor = .clear
+        button.tintColor = .primaryS1
+        button.alpha = 0
+        button.setImage(UIImage(systemName: "plus.circle"), for: .normal)
+        return button
+    }(UIButton())
+    
+    private lazy var languageSelectorButton = {
+        let languageSelector = LanguageSelectorButton()
+        languageSelector.translatesAutoresizingMaskIntoConstraints = false
+        languageSelector.tag = ButtonTag.countryButton.rawValue
+        return languageSelector
+    }()
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -95,30 +123,31 @@ private final class CustomNavBar: UIView{
         translatesAutoresizingMaskIntoConstraints = false
         heightAnchor.constraint(equalToConstant: 170).isActive = true
         
-        let row = UIStackView()
-        row.translatesAutoresizingMaskIntoConstraints = false
-        row.axis = .horizontal
-        row.alignment = .center
-        row.distribution = .equalSpacing
+        languageSelectorButton.didSelectLanguage = { value in
+            print(value)
+        }
+        addCountryButton.addTarget(self, action: #selector(addCountryButtonHandler), for: .touchUpInside)
         
         let title = UILabel()
+        title.translatesAutoresizingMaskIntoConstraints = false
         title.text = "🌍 Capital Countries"
         title.font = .systemFont(ofSize: 16, weight: .semibold)
         title.textColor = .primaryS1
         
-        let languageSelector = LanguageSelectorButton()
-        languageSelector.didSelectLanguage = { value in
-            print(value)
-        }
-        
-        row.addArrangedSubview(title)
-        row.addArrangedSubview(languageSelector)
-        
-        addSubview(row)
+        addSubview(title)
+        addSubview(languageSelectorButton)
+        addSubview(addCountryButton)
         NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 12),
-            row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            title.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 12),
+            title.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            
+            languageSelectorButton.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 12),
+            languageSelectorButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            languageSelectorButton.bottomAnchor.constraint(equalTo: title.bottomAnchor),
+            
+            addCountryButton.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor, constant: 12),
+            addCountryButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            addCountryButton.centerYAnchor.constraint(equalTo: title.centerYAnchor),
         ])
         
         addSubview(segmentControl)
@@ -126,7 +155,7 @@ private final class CustomNavBar: UIView{
             segmentControl.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
             segmentControl.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             segmentControl.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -12),
-            segmentControl.topAnchor.constraint(equalTo: row.bottomAnchor, constant: 12),
+            segmentControl.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 12),
             segmentControl.heightAnchor.constraint(equalToConstant: 40),
         ])
         
@@ -149,10 +178,51 @@ private final class CustomNavBar: UIView{
             let action = UIAction(title: title, handler: {[weak self] action in
                 guard let self = self else { return }
                 self.onChangeSegment?(i)
+                self.currentSegmentIndex = i
             })
             segmentControl.insertSegment(action: action, at: i, animated: true)
         }
         segmentControl.selectedSegmentIndex = 0
+    }
+    
+    private func changeButton() {
+        
+        var newView: UIView
+        var oldView: UIView
+        if currentSegmentIndex == 1{
+            newView = addCountryButton
+            oldView = languageSelectorButton
+        }else {
+            newView = languageSelectorButton
+            oldView = addCountryButton
+        }
+        
+        
+        newView.alpha = 0
+        newView.transform = CGAffineTransform(scaleX: 0, y: 0)
+        
+        UIView.animate(withDuration: 0.3, delay: 0, options: .curveEaseOut, animations: {
+            oldView.alpha = 0
+            oldView.transform = CGAffineTransform(scaleX: 0, y: 0)
+            
+            newView.alpha = 1
+            newView.transform = .identity
+        }) { _ in
+            oldView.transform = .identity
+        }
+    }
+    
+    @objc private func addCountryButtonHandler() {
+        guard let parentController = parentViewController else { return }
+        let child = CreateCountryController()
+        
+        if let presentationController = child.sheetPresentationController {
+            presentationController.prefersGrabberVisible = true
+            presentationController.detents = [.medium(), .large()]
+        }
+        
+        //parentController.modalPresentationStyle = .fullScreen
+        parentController.present(child, animated: true)
     }
 }
 
