@@ -1,6 +1,6 @@
 import Foundation
 
-struct Country: Hashable {
+struct Country: Identifiable, Hashable, Equatable {
     let id: UUID
     let name: String
     let capital: String

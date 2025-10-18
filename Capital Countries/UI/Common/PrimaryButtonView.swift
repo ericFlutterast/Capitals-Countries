@@ -15,6 +15,12 @@ final class PrimaryButtonView: UIView {
         }
     }
     
+    var isDisabled: Bool = false {
+        didSet {
+            backgroundColor = isDisabled ? .primaryS2 : .primaryS1
+        }
+    }
+    
     private var titleLabel = { label in
         label.font = .systemFont(ofSize: 13, weight: .medium)
         label.textColor = .appBar
@@ -60,6 +66,7 @@ final class PrimaryButtonView: UIView {
     }
     
     @objc private func handleTap() {
+        guard !isDisabled else { return }
         onTap?()
     }
 }

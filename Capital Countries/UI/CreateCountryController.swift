@@ -1,13 +1,46 @@
 import UIKit
+import os
 
 class CreateCountryController: UIViewController {
-    private var selectedContinent = "" {
+    private var selectedContinent = CountryContinent.europe.rawValue {
         didSet {
             updateSelectedContinent()
         }
     }
     
+    private var iteractor: CreateCountryIteractor!
     private var saveButtonBottomContraints: NSLayoutConstraint!
+    
+    private var countryNameField: PaddedTextField!
+    private var countryCapitalField: PaddedTextField!
+    private var flagField: PaddedTextField!
+    private var isSaveDisabled = true {
+        didSet {
+            saveButton.isDisabled = isSaveDisabled
+        }
+    }
+    
+    private lazy var saveButton = { button in
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.title = "Save"
+        button.isDisabled = isSaveDisabled
+        button.onTap = saveButtonHandler
+        return button
+    }(PrimaryButtonView())
+    
+    init(){
+        let dependencies = (UIApplication.shared.delegate as! AppDelegate).dependencies
+        iteractor = CreateCountryIteractor(
+            create: dependencies.resolve(CreateCountryUseCase.self)!,
+            logger: dependencies.resolve(Logger.self)!,
+            pipe: dependencies.resolve(DefaultPipe.self)!
+        )
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
     
     private lazy var continentSelector = {
         let button = UIButton(primaryAction: nil)
@@ -60,8 +93,9 @@ class CreateCountryController: UIViewController {
     private func configurateUI() {
         let countryTitle = title()
         countryTitle.text = "Country name"
-        let countryNameField = textField()
+        countryNameField = textField()
         countryNameField.placeholder = "Country name"
+        countryNameField.addTarget(self, action: #selector(onChange), for: .editingChanged)
         view.addSubview(countryTitle)
         view.addSubview(countryNameField)
         NSLayoutConstraint.activate([
@@ -76,7 +110,8 @@ class CreateCountryController: UIViewController {
         let countryCapitalTitle = title()
         countryCapitalTitle.translatesAutoresizingMaskIntoConstraints = false
         countryCapitalTitle.text = "Country capital"
-        let countryCapitalField = textField()
+        countryCapitalField = textField()
+        countryCapitalField.addTarget(self, action: #selector(onChange), for: .editingChanged)
         countryCapitalField.placeholder = "Capital name"
         view.addSubview(countryCapitalTitle)
         view.addSubview(countryCapitalField)
@@ -92,8 +127,9 @@ class CreateCountryController: UIViewController {
         
         let flagTitle = title()
         flagTitle.text = "Flag"
-        let flagField = textField()
+        flagField = textField()
         flagField.placeholder = "Flag"
+        flagField.addTarget(self, action: #selector(onChange), for: .editingChanged)
         view.addSubview(flagTitle)
         view.addSubview(flagField)
         NSLayoutConstraint.activate([
@@ -125,13 +161,7 @@ class CreateCountryController: UIViewController {
             continentSelector.widthAnchor.constraint(equalToConstant: (view.bounds.width / 2) - 16),
         ])
         
-        let saveButton = PrimaryButtonView()
-        saveButton.translatesAutoresizingMaskIntoConstraints = false
-        saveButton.title = "Save"
-        saveButton.onTap = {}
-        
         saveButtonBottomContraints = saveButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
-        
         view.addSubview(saveButton)
         NSLayoutConstraint.activate([
             saveButtonBottomContraints,
@@ -175,5 +205,32 @@ class CreateCountryController: UIViewController {
         textField.font = .systemFont(ofSize: 16, weight: .regular)
         textField.padding = UIEdgeInsets.init(top: 12, left: 8, bottom: 12, right: 8)
         return textField
+    }
+    
+    //MARK: Handlers
+    private func saveButtonHandler() {
+        guard !isSaveDisabled else { return }
+        
+        let country = Country(
+            id: UUID(),
+            name: countryNameField.text!,
+            capital: countryCapitalField.text!,
+            flag: flagField.text!,
+            continent: CountryContinent(rawValue: self.selectedContinent)!,
+        )
+        iteractor.createCountry(country)
+        self.dismiss(animated: true)
+    }
+    
+    @objc private func onChange() {
+        isSaveDisabled = chacheSaveButtonDisable()
+    }
+    
+    private func chacheSaveButtonDisable() -> Bool {
+        if let countryName = countryNameField.text, let capitalName = countryCapitalField.text, let flag = flagField.text, !countryName.isEmpty && !capitalName.isEmpty && !flag.isEmpty {
+            return false
+        }
+        
+        return true
     }
 }

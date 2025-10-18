@@ -222,7 +222,9 @@ private final class CustomNavBar: UIView{
         }
         
         //parentController.modalPresentationStyle = .fullScreen
-        parentController.present(child, animated: true)
+        parentController.present(child, animated: true) {
+            print("Modal sheet has been closed")
+        }
     }
 }
 

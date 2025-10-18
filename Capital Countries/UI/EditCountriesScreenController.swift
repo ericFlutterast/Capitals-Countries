@@ -1,22 +1,9 @@
 import UIKit
+import Combine
+import os
 
 private typealias DataSource = UICollectionViewDiffableDataSource<EditCountriesScreenController.Section, Country>
 private typealias Snapshot = NSDiffableDataSourceSnapshot<EditCountriesScreenController.Section, Country>
-
-//MARK: -TODO:
-var countries = [Country(id: UUID(), name: "Russia", capital: "Moscow", flag: "🇷🇺", continent: .europe),
-                 Country(id: UUID(), name: "USA", capital: "Washinghton", flag: "🇺🇸", continent: .america),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),
-                 Country(id: UUID(), name: "Norway", capital: "Oslo", flag: "🇳🇴", continent: .europe),]
 
 class EditCountriesScreenController: UIViewController {
     enum Section{
@@ -26,6 +13,17 @@ class EditCountriesScreenController: UIViewController {
     var scrollView = UIScrollView()
     private var scrollContainerView = UIView()
     private var contriesDataSource: DataSource!
+    
+    private var cancellables = Set<AnyCancellable>()
+    private var _iteractor: EditCountriesIteractor!
+    var iteractor: EditCountriesIteractor {
+        get { _iteractor }
+    }
+    
+    private var searchBar: UISearchBar!
+    private var countriesCollectionView: UICollectionView!
+    private var countriesCollectionHeightConstraint: NSLayoutConstraint!
+    private var countriesCount = 0
 
     private var changesControlSection = { stack in
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -34,16 +32,43 @@ class EditCountriesScreenController: UIViewController {
         return stack
     }(UIStackView())
     
-    private var countriesCollectionView: UICollectionView!
-
+    private var emptryPlug = { stack in
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.spacing = 16
+        stack.distribution = .fillProportionally
+        stack.axis = .vertical
+        return stack
+    }(UIStackView())
+    
+    init() {
+        let dependencies = (UIApplication.shared.delegate as! AppDelegate).dependencies
+        _iteractor = EditCountriesIteractor(
+            delete: dependencies.resolve(DeleteCountryUseCase.self)!,
+            edit: dependencies.resolve(EditCountryUseCase.self)!,
+            getAll: dependencies.resolve(FetchCountriesUseCase.self)!,
+            logger: dependencies.resolve(Logger.self)!,
+            pipe: dependencies.resolve(DefaultPipe.self)!
+        )
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        view.backgroundColor = .background
+        
         configurateScroll()
-        configurateUI()
+        bindData()
+        _iteractor.fetchAllCountries()
+        
         let gestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapOusideHandler))
         view.addGestureRecognizer(gestureRecognizer)
     }
-
+    
+    
     private func configurateScroll()  {
         scrollView.isUserInteractionEnabled = true
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -66,11 +91,56 @@ class EditCountriesScreenController: UIViewController {
             scrollContainerView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
         ])
     }
-
-    private func configurateUI() {
-        view.backgroundColor = .background
-
-        let searchBar = UISearchBar()
+    
+    private func bindData() {
+        _iteractor.$state.sink { [weak self] stateValue in
+            guard let self = self else { return }
+            
+            switch stateValue {
+            case .success(let data): updateUI(countries: data)
+            default: break
+            }
+            
+        }.store(in: &cancellables)
+    }
+    
+    private func updateUI(countries: [Country]) {
+        if countries.count == 0 && countriesCount > 0 {
+            applySnapshot(countries: countries)
+            countriesCount = countries.count
+            deintegrateUI()
+            emptyDataPlug()
+            return
+        }
+        
+        if countries.count == 0 {
+            countriesCount = countries.count
+            emptyDataPlug()
+            return
+        }
+        
+        if countries.count > 0 && countriesCount == 0 {
+            emptryPlug.removeFromSuperview()
+            configurateUI(countryCount: countries.count)
+            applySnapshot(countries: countries)
+            countriesCount = countries.count
+            return
+        }
+        
+        countriesCollectionHeightConstraint.constant = 412 * CGFloat(countries.count)
+        applySnapshot(countries: countries)
+        countriesCount = countries.count
+    }
+    
+    private func applySnapshot(countries: [Country]) {
+        var snapshot = Snapshot()
+        snapshot.appendSections([.main])
+        snapshot.appendItems(countries.reversed())
+        self.contriesDataSource.apply(snapshot)
+    }
+    
+    private func configurateUI(countryCount: Int) {
+        searchBar = UISearchBar()
         searchBar.translatesAutoresizingMaskIntoConstraints = false
         searchBar.layer.borderColor = UIColor.clear.cgColor
         searchBar.backgroundColor = .background
@@ -111,18 +181,58 @@ class EditCountriesScreenController: UIViewController {
         configurateCollectionView()
 
         scrollContainerView.addSubview(countriesCollectionView)
+        countriesCollectionHeightConstraint = countriesCollectionView.heightAnchor.constraint(equalToConstant: 412 * CGFloat(countryCount))
         NSLayoutConstraint.activate([
+            countriesCollectionHeightConstraint,
             countriesCollectionView.topAnchor.constraint(equalTo: changesControlSection.bottomAnchor, constant: 20),
             countriesCollectionView.leadingAnchor.constraint(equalTo: scrollContainerView.leadingAnchor, constant: 0),
             countriesCollectionView.trailingAnchor.constraint(equalTo: scrollContainerView.trailingAnchor, constant: 0),
-            countriesCollectionView.heightAnchor.constraint(equalToConstant: (view.bounds.width * 1.4 * 13) + 12 * 13), //13 counts of countries
             countriesCollectionView.bottomAnchor.constraint(equalTo: scrollContainerView.safeAreaLayoutGuide.bottomAnchor, constant: -20)
         ])
     }
+    
+    private func deintegrateUI() {
+        searchBar.removeFromSuperview()
+        changesControlSection.removeFromSuperview()
+        countriesCollectionView.removeFromSuperview()
+    }
+    
+    private func emptyDataPlug() {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = "You can create and edit countries here"
+        label.textColor = .primaryS1
+        label.font = .systemFont(ofSize: 26, weight: .semibold)
+        label.numberOfLines = 3
+        label.textAlignment = .center
+        
+        let button = UIButton()
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.isUserInteractionEnabled = true
+        button.tintColor = .primaryS1
+        button.setImage(UIImage(systemName: "plus.app.fill"), for: .normal)
+        button.setTitle("Create country", for: .normal)
+        button.setTitleColor(.primaryS1, for: .normal)
+        button.setTitleColor(.textSecondary, for: .highlighted)
+        button.addTarget(self, action: #selector(createCoutryHandler), for: .touchDown)
+        
+        emptryPlug.addArrangedSubview(label)
+        emptryPlug.addArrangedSubview(button)
+        
+        scrollContainerView.addSubview(emptryPlug)
+        NSLayoutConstraint.activate([
+            emptryPlug.topAnchor.constraint(equalTo: scrollContainerView.topAnchor, constant: view.bounds.height * 0.2),
+            emptryPlug.heightAnchor.constraint(equalToConstant: 150),
+            emptryPlug.widthAnchor.constraint(equalToConstant: view.bounds.width - 80),
+            emptryPlug.centerXAnchor.constraint(equalTo: scrollContainerView.centerXAnchor),
+            emptryPlug.centerYAnchor.constraint(equalTo: scrollContainerView.centerYAnchor),
+        ])
+    }
+
 
     private func configurateCollectionView() {
         let collectionLayout = UICollectionViewFlowLayout()
-        collectionLayout.itemSize = CGSize(width: view.bounds.width - 32, height: view.bounds.height * 0.35)
+        collectionLayout.itemSize = CGSize(width: view.bounds.width - 32, height: 400)
         collectionLayout.minimumLineSpacing = 12
 
         countriesCollectionView = UICollectionView(
@@ -135,7 +245,6 @@ class EditCountriesScreenController: UIViewController {
         countriesCollectionView.keyboardDismissMode = .onDrag
         countriesCollectionView.register(CountryCell.self, forCellWithReuseIdentifier: CountryCell.reuseID)
         configurateDataSource()
-        applySnapshot()
     }
     
     private func configurateDataSource() {
@@ -143,19 +252,12 @@ class EditCountriesScreenController: UIViewController {
             collectionView, indexPath, country in
             guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: CountryCell.reuseID, for: indexPath) as? CountryCell else { return nil }
             
-            cell.cofigurateWith(country: countries[indexPath.row])
+            cell.cofigurateWith(country: country)
             
             return cell
         })
     }
     
-    private func applySnapshot() {
-        var snapshot = Snapshot()
-        snapshot.appendSections([.main])
-        snapshot.appendItems(countries)
-        contriesDataSource.apply(snapshot)
-    }
-
     // MARK: Handlers
     @objc private func tapOusideHandler() {
         view.endEditing(true)
@@ -167,6 +269,18 @@ class EditCountriesScreenController: UIViewController {
 
     @objc private func saveChangesHandler() {
         print("saveChangesHandler")
+    }
+    
+    @objc private func createCoutryHandler() {
+        //TODO: Move to navigator
+        let createCountryController = CreateCountryController()
+        
+        if let modalController = createCountryController.sheetPresentationController {
+            modalController.prefersGrabberVisible = true
+            modalController.detents = [.medium(), .large()]
+        }
+        
+        self.present(createCountryController, animated: true)
     }
 }
 
@@ -185,9 +299,11 @@ private final class CountryCell: UICollectionViewCell {
         }
     }
     
+    private var id: UUID?
     private var flag = UILabel()
     private var name = UILabel()
     private var continent = CustomChipView()
+    private var capitalTextField: UITextField!
     private var countryTextField: UITextField!
     private var flagTextField: UITextField!
     
@@ -198,14 +314,6 @@ private final class CountryCell: UICollectionViewCell {
         stack.distribution = .fill
         return stack
     }(UIStackView())
-    
-    private lazy var subtitle = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.font = .systemFont(ofSize: 12, weight: .regular)
-        label.textColor = .textSecondary
-        return label
-    }()
     
     private lazy var footerSelectContinentButton = { button in
         button.showsMenuAsPrimaryAction = true
@@ -221,20 +329,24 @@ private final class CountryCell: UICollectionViewCell {
         super.init(frame: frame)
         configurateUI()
     }
-
+    
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-
+    
     private func configurateUI() {
+        let contextMenuInteraction = UIContextMenuInteraction(delegate: self)
+        addInteraction(contextMenuInteraction)
+        
         countryTextField = textField()
         flagTextField = textField()
+        capitalTextField = textField()
         backgroundColor = .appBar
         layer.cornerRadius = 12
         layer.shadowColor = UIColor.textPrimary.cgColor
         layer.shadowOpacity = 0.16
         layer.shadowOffset = CGSize(width: 0, height: 4)
-
+        
         configurateHeader()
         
         let countryTitle = title()
@@ -245,7 +357,7 @@ private final class CountryCell: UICollectionViewCell {
             countryTitle.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
         ])
         
-        let countrySubtitle = subtitle
+        let countrySubtitle = subtitle()
         countrySubtitle.text = "English"
         addSubview(countrySubtitle)
         addSubview(countryTextField)
@@ -256,6 +368,27 @@ private final class CountryCell: UICollectionViewCell {
             countryTextField.topAnchor.constraint(equalTo: countrySubtitle.bottomAnchor, constant: 8),
             countryTextField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
             countryTextField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
+        ])
+        
+        let capitalTitle = title()
+        capitalTitle.text = "Capital"
+        addSubview(capitalTitle)
+        NSLayoutConstraint.activate([
+            capitalTitle.topAnchor.constraint(equalTo: countryTextField.bottomAnchor, constant: 16),
+            capitalTitle.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
+        ])
+        
+        let capitalSubtitle = subtitle()
+        capitalSubtitle.text = "English"
+        addSubview(capitalSubtitle)
+        addSubview(capitalTextField)
+        NSLayoutConstraint.activate([
+            capitalSubtitle.topAnchor.constraint(equalTo: capitalTitle.bottomAnchor, constant: 4),
+            capitalSubtitle.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
+            
+            capitalTextField.topAnchor.constraint(equalTo: capitalSubtitle.bottomAnchor, constant: 8),
+            capitalTextField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
+            capitalTextField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
         ])
         
         configurateFooter()
@@ -293,7 +426,7 @@ private final class CountryCell: UICollectionViewCell {
         
         let flagTitle = title()
         flagTitle.text = "Flag"
-   
+        
         flagTextField.textAlignment = .center
         flagTextField.font = .systemFont(ofSize: 30)
         flagTextField.widthAnchor.constraint(equalToConstant: (bounds.width - 48) / 2 ).isActive = true
@@ -303,7 +436,7 @@ private final class CountryCell: UICollectionViewCell {
         
         let continentTitle = title()
         continentTitle.text = "Continent"
-    
+        
         var menuChildren: [UIMenuElement] = []
         configurateMenuActionsFor(&menuChildren)
         let menu = UIMenu(options: .displayInline, children: menuChildren)
@@ -321,7 +454,7 @@ private final class CountryCell: UICollectionViewCell {
         
         addSubview(row)
         NSLayoutConstraint.activate([
-            row.topAnchor.constraint(equalTo: countryTextField.bottomAnchor, constant: 16),
+            row.topAnchor.constraint(equalTo: capitalTextField.bottomAnchor, constant: 16),
             row.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
             row.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
             row.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -24)
@@ -338,6 +471,14 @@ private final class CountryCell: UICollectionViewCell {
             children.append(action)
         }
         
+    }
+    
+    private func subtitle() -> UILabel {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = .systemFont(ofSize: 12, weight: .regular)
+        label.textColor = .textSecondary
+        return label
     }
     
     private func title() -> UILabel {
@@ -370,12 +511,39 @@ private final class CountryCell: UICollectionViewCell {
     }
     
     func cofigurateWith(country: Country) {
+        id = country.id
         flag.text = country.flag
         name.text = country.name
         continent.title = country.continent.rawValue
         countryTextField.text = country.name
         flagTextField.text = country.flag
+        capitalTextField.text = country.capital
         currentContinent = country.continent
         footerSelectContinentButton.setTitle(country.continent.rawValue, for: .normal)
     }
+    
+    //MARK: Country card handlers
+    private func deleteCountry(_ :UIAction) {
+        guard let parentController = parentViewController as? EditCountriesScreenController, let id = id else { return }
+        parentController.iteractor.deleteCountryBy(id: id)
+    }
+    
+    private func editCountry(_ :UIAction) {
+        //guard let parentController = parentViewController else { return }
+    }
+}
+
+extension CountryCell: UIContextMenuInteractionDelegate {
+    
+    func contextMenuInteraction(_ interaction: UIContextMenuInteraction, configurationForMenuAtLocation location: CGPoint) -> UIContextMenuConfiguration? {
+        
+        let configuration = UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ -> UIMenu in
+            let editAction = UIAction(title: "Edit", image: UIImage(systemName: "pencil"), handler: self.editCountry)
+            let deleteAction = UIAction(title: "Dlelete", image: UIImage(systemName: "trash"), attributes: .destructive, handler: self.deleteCountry)
+            return UIMenu(children: [editAction, deleteAction])
+        }
+        
+        return configuration
+    }
+    
 }

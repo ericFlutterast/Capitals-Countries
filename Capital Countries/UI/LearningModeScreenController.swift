@@ -344,6 +344,11 @@ private final class CountryCardController: UIViewController {
     @objc private func tapOutsideHandler() {
         view.endEditing(true)
     }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillShowNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
 }
 
 //MARK: Capital input UITextFieldDelegate
