@@ -67,7 +67,7 @@ final class EditCountriesIteractor: ObservableObject {
     func fetchAllCountries() {
         state = .loading
         do{
-            let result = try getAll.execute()
+            let result = try getAll.execute(filter: nil)
             state = .success(result)
         } catch {
             logger.error("Execute fetch all countries failed: \(error)")

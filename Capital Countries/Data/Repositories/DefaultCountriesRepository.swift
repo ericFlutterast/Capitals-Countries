@@ -19,8 +19,8 @@ final class DefaultCountriesRepository: CountriesRepository {
         try countriesLocatData.updateCountry(country)
     }
     
-    func getCountries() throws -> [Country]  {
-        let countries = try countriesLocatData.getCountries()
+    func getCountries(filter: CountryContinent?) throws -> [Country]  {
+        let countries = try countriesLocatData.getCountries(filter: filter)
         return countries
     }
 }

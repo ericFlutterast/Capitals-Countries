@@ -10,6 +10,8 @@ class LearningModeScreenController: UIViewController {
     private let scrollContainerView = UIView()
     private let scoreChip = CustomChipView()
     private let countCountriesChip = CustomChipView()
+    private let countriesGroup = CountryGroupsDropDownView()
+    private let endTestView = EndTestView()
     
     fileprivate var iteractor: LearningCountriesIteractor
     private var cansallable = Set<AnyCancellable>()
@@ -67,6 +69,8 @@ class LearningModeScreenController: UIViewController {
                 self.countryCard.isAswerCorrect = true
             case .success(let value):
                 self.updateUI(with: value)
+            case .endTest(let (score, countryCounts)):
+                self.showEndTestView(score: score, countryCount: countryCounts)
             default: break
             }
         }
@@ -79,6 +83,41 @@ class LearningModeScreenController: UIViewController {
         progressIndicatorView.setProgress(value.currentProgress, animated: true)
         countryCard.countryFlagLabet.text = value.current.country.flag
         countryCard.countryTitleLabel.text = value.current.country.name
+    }
+    
+    private func showEndTestView(score: Int, countryCount: Int) {
+        countryCard.willMove(toParent: nil)
+        countryCard.view.removeFromSuperview()
+        countryCard.removeFromParent()
+        
+        endTestView.translatesAutoresizingMaskIntoConstraints = false
+        endTestView.countryCounts = countryCount
+        endTestView.score = score
+        endTestView.onContinue = showCountryCardAgain
+        scrollContainerView.addSubview(endTestView)
+        NSLayoutConstraint.activate([
+            endTestView.topAnchor.constraint(equalTo: countriesGroup.bottomAnchor, constant: 24),
+            endTestView.leadingAnchor.constraint(equalTo: scrollContainerView.leadingAnchor, constant: 16),
+            endTestView.trailingAnchor.constraint(equalTo: scrollContainerView.trailingAnchor, constant: -16),
+            endTestView.bottomAnchor.constraint(equalTo: scrollContainerView.bottomAnchor, constant: -16),
+        ])
+    }
+    
+    private func showCountryCardAgain() {
+        endTestView.removeFromSuperview()
+        
+        iteractor.fetchCountries()
+        
+        countriesGroup.selectedValue = "🌍 All"
+        addChild(countryCard)
+        countryCard.view.translatesAutoresizingMaskIntoConstraints = false
+        scrollContainerView.addSubview(countryCard.view)
+        NSLayoutConstraint.activate([
+            countryCard.view.topAnchor.constraint(equalTo: countriesGroup.bottomAnchor, constant: 24),
+            countryCard.view.leadingAnchor.constraint(equalTo: scrollContainerView.leadingAnchor, constant: 16),
+            countryCard.view.trailingAnchor.constraint(equalTo: scrollContainerView.trailingAnchor, constant: -16),
+            countryCard.view.bottomAnchor.constraint(equalTo: scrollContainerView.bottomAnchor, constant: -16),
+        ])
     }
     
     private func configurateScroll() {
@@ -129,7 +168,6 @@ class LearningModeScreenController: UIViewController {
             progressIndicatorView.trailingAnchor.constraint(equalTo: scrollContainerView.trailingAnchor, constant: -16),
         ])
         
-        let countriesGroup = CountryGroupsDropDownView()
         countriesGroup.translatesAutoresizingMaskIntoConstraints = false
         countriesGroup.onSelect = onSelectCountryGroup
         scrollContainerView.addSubview(countriesGroup)
@@ -150,18 +188,18 @@ class LearningModeScreenController: UIViewController {
         ])
     }
     
-    private func onSelectCountryGroup(_ value: String) {
-        print(value)
+    private func onSelectCountryGroup(_ value: CountryContinent?) {
+        iteractor.fetchCountries(filter: value)
     }
 }
 
 //MARK: CountryGroupsDropDownView
 private final class CountryGroupsDropDownView: UIView{
-    var onSelect: ((String) -> Void)?
+    var onSelect: ((CountryContinent?) -> Void)?
     
-    private let countriesData: [(String, String)] = [("🌍", "All"),("🇪🇺", "Europe"),("🗽", "America"),("🏯", "Asia"),("🦁", "Africa"),("🏄‍♂️", "Oceania")]
+    private let countriesData: [String] = ["🌍 All"] + CountryContinent.allCases.map { $0.rawValue }
     
-    private lazy var selectedValue = "\(countriesData[0].0) \(countriesData[0].1)" {
+    var selectedValue = "🌍 All" {
         didSet {
             buttonView.setTitle(selectedValue, for: .normal)
         }
@@ -203,10 +241,10 @@ private final class CountryGroupsDropDownView: UIView{
     }
     
     private func configurateActionsFor(_ children: inout [UIMenuElement]) {
-        for (emoji, title) in countriesData {
-            let action = UIAction(title: "\(emoji) \(title)", handler: { [weak self] _ in
-                self?.selectedValue = "\(emoji) \(title)"
-                self?.onSelect?(title)
+        for value in countriesData {
+            let action = UIAction(title: value, handler: { [weak self] _ in
+                self?.selectedValue = value
+                self?.onSelect?(CountryContinent(rawValue: value))
             })
             children.append(action)
         }
@@ -489,5 +527,92 @@ private final class PlaySountButton: UIView {
     
     @objc private func handleTap() {
         onTap?()
+    }
+}
+
+//MARK: End test view
+private final class EndTestView: UIView {
+    var onContinue: (() -> Void)?
+    
+    var score: Int = 0 {
+        didSet {
+            subtitle.text = "Your result: score: \(score), countryCounts: \(countryCounts)"
+        }
+    }
+    
+    var countryCounts: Int = 0 {
+        didSet {
+            subtitle.text = "Your result: score: \(score), countryCounts: \(countryCounts)"
+        }
+    }
+    
+    private var button = PrimaryButtonView()
+
+    private lazy var subtitle = { label in
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.textColor = .primaryS1
+        label.font = .systemFont(ofSize: 16, weight: .regular)
+        label.numberOfLines = 1
+        label.textAlignment = .center
+        return label
+    }(UILabel())
+
+    
+    convenience init(score: Int = 0, countryCount: Int = 0, onCountinue: (() -> Void)?) {
+        self.init()
+        self.score = score
+        self.countryCounts = countryCount
+        self.onContinue = onCountinue
+    }
+    
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        configurateUI()
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError( "init(coder:) has not been implemented" )
+    }
+    
+    private func configurateUI() {
+        backgroundColor = .backgroundSecondary
+        layer.cornerRadius = 16
+        
+        let title = UILabel()
+        title.translatesAutoresizingMaskIntoConstraints = false
+        title.text = "Test has been complited"
+        title.textColor = .primaryS1
+        title.font = .systemFont(ofSize: 24, weight: .semibold)
+        title.numberOfLines = 1
+        title.textAlignment = .center
+        
+        subtitle.text = "Your result: score: \(score), countryCounts: \(countryCounts)"
+        
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.onTap = onTap
+        button.title = "Start again"
+        
+        addSubview(title)
+        addSubview(subtitle)
+        addSubview(button)
+        NSLayoutConstraint.activate([
+            title.topAnchor.constraint(equalTo: topAnchor, constant: 20),
+            title.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
+            title.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
+            
+            subtitle.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 20),
+            subtitle.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
+            subtitle.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
+            
+            button.heightAnchor.constraint(equalToConstant: 50),
+            button.topAnchor.constraint(equalTo: subtitle.bottomAnchor, constant: 40),
+            button.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
+            button.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
+            button.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -20),
+        ])
+    }
+    
+    private func onTap() {
+        onContinue?()
     }
 }

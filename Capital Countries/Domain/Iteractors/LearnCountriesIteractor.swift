@@ -11,6 +11,10 @@ enum LearningContriesState{
     case error(String?)
 }
 
+enum Errors: Error {
+    case emptyContries
+}
+
 struct LearningContriesStateValue {
     var countries: [Country]
     var current: (index: Int, country: Country)
@@ -39,9 +43,10 @@ final class LearningCountriesIteractor: ObservableObject {
         }
     }
     
-    private func fetchCountries() {
+    func fetchCountries(filter: CountryContinent? = nil) {
         do{
-            let result = try fetchCountriesUseCase.execute()
+            let result = try fetchCountriesUseCase.execute(filter: filter)
+            guard !result.isEmpty else { throw Errors.emptyContries }
             state = .success(LearningContriesStateValue(countries: result, current: (index: 0, country: result[0])))
         } catch {
             logger.error("Fetch contries error: \(error)")

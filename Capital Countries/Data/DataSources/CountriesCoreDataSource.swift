@@ -26,8 +26,14 @@ final class CountriesCoreDataSource: CountriesDataSource {
         try context.save()
     }
     
-    func getCountries() throws -> [Country] {
+    func getCountries(filter: CountryContinent?) throws -> [Country] {
         let request = CountryEntitie.fetchRequest()
+        
+        if filter != nil {
+            let predicate = NSPredicate(format: "continent == %@", filter!.rawValue as CVarArg)
+            request.predicate = predicate
+        }
+        
         let result = try context.fetch(request)
         return result.map { CountryMapper.toModel($0) }
     }

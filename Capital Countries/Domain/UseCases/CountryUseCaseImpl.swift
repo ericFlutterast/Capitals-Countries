@@ -13,7 +13,7 @@ protocol EditCountryUseCase{
 }
 
 protocol FetchCountriesUseCase {
-    func execute() throws -> [Country]
+    func execute(filter: CountryContinent?) throws -> [Country]
 }
 
 final class CountryUseCaseImpl: CreateCountryUseCase, DeleteCountryUseCase, FetchCountriesUseCase, EditCountryUseCase {
@@ -23,8 +23,8 @@ final class CountryUseCaseImpl: CreateCountryUseCase, DeleteCountryUseCase, Fetc
         self.countriesRepository = countriesRepository
     }
     
-    func execute() throws -> [Country] {
-        try countriesRepository.getCountries()
+    func execute(filter: CountryContinent?) throws -> [Country] {
+        try countriesRepository.getCountries(filter: filter)
     }
     
     func execute(_ id: UUID) throws {
