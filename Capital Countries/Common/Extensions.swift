@@ -1,14 +1,15 @@
 import UIKit
 
-extension UIView{
-    var parentViewController: UIViewController? {
-        var responder: UIResponder? = self
+extension UIView {
+    func findUiViewController<T: UIViewController>(ofType type: T.Type, selfResponder: Bool = false) -> T? {
+        var responder = selfResponder ? self : self.next
         while responder != nil {
-            responder = responder?.next
-            if let controller = responder as? UIViewController {
+            if let controller = responder as? T {
                 return controller
             }
+            responder = responder?.next
         }
+        
         return nil
     }
 }

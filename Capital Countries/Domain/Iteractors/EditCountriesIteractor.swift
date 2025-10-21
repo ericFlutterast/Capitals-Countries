@@ -43,6 +43,7 @@ final class EditCountriesIteractor: ObservableObject {
                 var newData = data
                 try delete.execute(id)
                 newData.removeAll { $0.id == id }
+                pipe.publish(event: .fetchAllCountries)
                 state = .success(newData)
             default:
                 throw EditCountriesIteractorError.deleteError

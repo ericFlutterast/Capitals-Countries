@@ -524,7 +524,7 @@ private final class CountryCell: UICollectionViewCell {
     
     //MARK: Country card handlers
     private func deleteCountry(_ :UIAction) {
-        guard let parentController = parentViewController as? EditCountriesScreenController, let id = id else { return }
+        guard let parentController = findUiViewController(ofType: EditCountriesScreenController.self), let id = id else { return }
         parentController.iteractor.deleteCountryBy(id: id)
     }
     

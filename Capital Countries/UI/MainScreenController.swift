@@ -213,7 +213,7 @@ private final class CustomNavBar: UIView{
     }
     
     @objc private func addCountryButtonHandler() {
-        guard let parentController = parentViewController else { return }
+        guard let parentController = findUiViewController(ofType: MainScreenController.self) else { return }
         let child = CreateCountryController()
         
         if let presentationController = child.sheetPresentationController {
@@ -221,7 +221,6 @@ private final class CustomNavBar: UIView{
             presentationController.detents = [.medium(), .large()]
         }
         
-        //parentController.modalPresentationStyle = .fullScreen
         parentController.present(child, animated: true) {
             print("Modal sheet has been closed")
         }

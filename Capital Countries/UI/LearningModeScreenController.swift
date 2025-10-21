@@ -1,4 +1,6 @@
 import UIKit
+import Combine
+import os
 
 //MARK: LearningModeScreenController
 class LearningModeScreenController: UIViewController {
@@ -6,6 +8,25 @@ class LearningModeScreenController: UIViewController {
     
     fileprivate let scrollView = UIScrollView()
     private let scrollContainerView = UIView()
+    private let scoreChip = CustomChipView()
+    private let countCountriesChip = CustomChipView()
+    
+    fileprivate var iteractor: LearningCountriesIteractor
+    private var cansallable = Set<AnyCancellable>()
+    
+    init() {
+        let dependencies = (UIApplication.shared.delegate as! AppDelegate).dependencies
+        self.iteractor = LearningCountriesIteractor(
+            fetchCountries: dependencies.resolve(FetchCountriesUseCase.self)!,
+            logger: dependencies.resolve(Logger.self)!,
+            pipe: dependencies.resolve(DefaultPipe.self)!,
+        )
+        super.init(nibName: nil, bundle: nil)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
     
     private lazy var scoreCounterView = { stack in
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -25,10 +46,39 @@ class LearningModeScreenController: UIViewController {
         return progressIndicator
     }(UIProgressView(progressViewStyle: .bar))
     
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         configurateScroll()
         configurateUI()
+        bindData()
+    }
+    
+    private func bindData() {
+        
+        iteractor.$state.sink{ [weak self] state in
+            guard let self = self else { return }
+            
+            switch state {
+            case .wrongAnswer:
+                self.countryCard.isAswerCorrect = false
+            case .successAnswer(let value):
+                self.updateUI(with: value)
+                self.countryCard.isAswerCorrect = true
+            case .success(let value):
+                self.updateUI(with: value)
+            default: break
+            }
+        }
+        .store(in: &cansallable)
+    }
+    
+    private func updateUI(with value: LearningContriesStateValue) {
+        scoreChip.title = "Score: \(value.currentScore)/\(value.countries.count)"
+        countCountriesChip.title = "\(value.current.index + 1)/\(value.countries.count)"
+        progressIndicatorView.setProgress(value.currentProgress, animated: true)
+        countryCard.countryFlagLabet.text = value.current.country.flag
+        countryCard.countryTitleLabel.text = value.current.country.name
     }
     
     private func configurateScroll() {
@@ -56,15 +106,10 @@ class LearningModeScreenController: UIViewController {
 
     private func configurateUI() {
         view.backgroundColor = .background
-        
-        let scoreChip = CustomChipView()
-        let countCountriesChip = CustomChipView()
-        
-        scoreChip.title = "Score: 0/25"
+
         scoreChip.backgroundColor = .border
         scoreChip.translatesAutoresizingMaskIntoConstraints = false
         
-        countCountriesChip.title = "1/25"
         countCountriesChip.translatesAutoresizingMaskIntoConstraints = false
         countCountriesChip.backgroundColor = .background
         
@@ -83,8 +128,6 @@ class LearningModeScreenController: UIViewController {
             progressIndicatorView.leadingAnchor.constraint(equalTo: scrollContainerView.leadingAnchor, constant: 16),
             progressIndicatorView.trailingAnchor.constraint(equalTo: scrollContainerView.trailingAnchor, constant: -16),
         ])
-        
-        progressIndicatorView.setProgress(0.2, animated: true)
         
         let countriesGroup = CountryGroupsDropDownView()
         countriesGroup.translatesAutoresizingMaskIntoConstraints = false
@@ -172,13 +215,19 @@ private final class CountryGroupsDropDownView: UIView{
 
 //MARK: CountryCardController
 private final class CountryCardController: UIViewController {
-    private lazy var countryFlagLabet = { label in
+    var isAswerCorrect: Bool = false {
+        didSet {
+            turnOnBorder(withColor: isAswerCorrect ? .primaryS1 : .red)
+        }
+    }
+    
+    lazy var countryFlagLabet = { label in
         label.translatesAutoresizingMaskIntoConstraints = false
         label.font = .systemFont(ofSize: 72)
         return label
     }(UILabel())
     
-    private lazy var countryTitleLabel = { label in
+    lazy var countryTitleLabel = { label in
         label.translatesAutoresizingMaskIntoConstraints = false
         label.textColor = .primaryS1
         label.font = .systemFont(ofSize: 20, weight: .semibold)
@@ -187,7 +236,7 @@ private final class CountryCardController: UIViewController {
     
     private var capitalTextInput = { textField in
         textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.text = "Enter the capital..."
+        textField.placeholder = "Enter the capital..."
         textField.font = .systemFont(ofSize: 20, weight: .regular)
         textField.heightAnchor.constraint(equalToConstant: 52).isActive = true
         textField.backgroundColor = .backgroundSecondary
@@ -219,6 +268,17 @@ private final class CountryCardController: UIViewController {
         view.addGestureRecognizer(gestureRecognizer)
     }
     
+    private func turnOnBorder(withColor color: UIColor) {
+        capitalTextInput.layer.borderColor = color.cgColor
+        capitalTextInput.layer.borderWidth = 1
+        capitalTextInput.textColor = color
+    }
+    
+    private func turnOffBorder() {
+        capitalTextInput.layer.borderWidth = 0
+        capitalTextInput.textColor = .textPrimary
+    }
+    
     private func configurateUI() {
         view.backgroundColor = .appBar
         view.layer.cornerRadius = 24
@@ -227,7 +287,6 @@ private final class CountryCardController: UIViewController {
         view.layer.shadowOpacity = 0.25
         view.layer.shadowOffset = CGSize(width: 0, height: 4)
 
-        countryFlagLabet.text = "🇪🇺"
         view.addSubview(countryFlagLabet)
         NSLayoutConstraint.activate([
             countryFlagLabet.topAnchor.constraint(equalTo: view.topAnchor, constant: 32),
@@ -244,7 +303,6 @@ private final class CountryCardController: UIViewController {
             capitalQuestionLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor),
         ])
         
-        countryTitleLabel.text = "Australia?"
         view.addSubview(countryTitleLabel)
         NSLayoutConstraint.activate([
             countryTitleLabel.topAnchor.constraint(equalTo: capitalQuestionLabel.bottomAnchor, constant: 16),
@@ -319,11 +377,15 @@ private final class CountryCardController: UIViewController {
     }
     
     private func checkCapitalHandler() {
-        print("checkCapitalHandler")
+        guard let parent = self.view.findUiViewController(ofType: LearningModeScreenController.self) else { return }
+        parent.iteractor.checkAnswer(capitalTextInput.text ?? "")
     }
     
     @objc private func nextCountryHandler() {
-        print("Next country")
+        guard let parent = self.view.findUiViewController(ofType: LearningModeScreenController.self) else { return }
+        turnOffBorder()
+        capitalTextInput.text = ""
+        parent.iteractor.nextCountry()
     }
     
     @objc private func keyboardWillShowHandler(_ notification: NSNotification){
